@@ -25,11 +25,10 @@ module.exports = async ({ req, res, log, error }) => {
     // 2. Upload - Menggunakan pendekatan InputFile.fromBuffer yang lebih aman
     log("Mencoba upload ke Bucket ID: " + process.env.APPWRITE_BUCKET_ID);
     
-    // Pastikan kita menggunakan metode dari kelas InputFile yang benar
     const uploadedFile = await storage.createFile(
       process.env.APPWRITE_BUCKET_ID,
       ID.unique(),
-      InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
+      InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav') 
     );
     
     log("Upload berhasil. File ID: " + uploadedFile.$id);
