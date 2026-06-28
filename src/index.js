@@ -4,44 +4,35 @@ const fetch = require('node-fetch');
 module.exports = async ({ req, res, log, error }) => {
   log("Function started!");
 
-  // 1. Ambil data dengan aman (cek req.body atau req.payload)
-  // Appwrite sering menaruh JSON di req.payload
-  const payload = req.payload ? JSON.parse(req.payload) : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
-  
-  log("Data yang diterima:", JSON.stringify(payload));
-
-  const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = payload;
-
-  if (!replicateUrl) {
-    error("replicateUrl tidak ditemukan dalam payload!");
-    return res.json({ success: false, error: "replicateUrl missing" }, 400);
-  }
-
-  const client = new Client()
-    .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
-    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setKey(process.env.APPWRITE_API_KEY);
-
-  const storage = new Storage(client);
-  const databases = new Databases(client);
-
   try {
-    log(`Fetching URL: ${replicateUrl}`);
-    const response = await fetch(replicateUrl);
-    
-    if (!response.ok) throw new Error(`Gagal download: ${response.statusText}`);
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const payload = req.payload ? JSON.parse(req.payload) : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
+    const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = payload;
 
-    log("Uploading to storage...");
+    const client = new Client()
+      .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
+      .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+      .setKey(process.env.APPWRITE_API_KEY);
+
+    const storage = new Storage(client);
+    const databases = new Databases(client);
+
+    // 1. Fetch
+    log("Fetching URL...");
+    const response = await fetch(replicateUrl);
+    if (!response.ok) throw new Error(`Fetch gagal: ${response.statusText}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // 2. Upload
+    log("Mencoba upload ke Bucket ID: " + process.env.BUCKET_ID);
     const uploadedFile = await storage.createFile(
       process.env.BUCKET_ID,
       ID.unique(),
       InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
     );
-    log("Upload berhasil! File ID:", uploadedFile.$id);
-    log("Creating document...");
+    log("Upload berhasil. File ID: " + uploadedFile.$id);
+
+    // 3. Database
+    log("Mencoba buat dokumen di Database ID: " + process.env.DATABASE_ID);
     const newDoc = await databases.createDocument(
       process.env.DATABASE_ID,
       'generations',
@@ -56,11 +47,14 @@ module.exports = async ({ req, res, log, error }) => {
         language_code: languageCode
       }
     );
+    log("Database berhasil diupdate!");
 
-    return res.json({ success: true, document: newDoc });
+    return res.json({ success: true, docId: newDoc.$id });
 
   } catch (err) {
-    error(`Error details: ${err.message}`);
+    error("CRITICAL ERROR: " + err.message);
+    // Tambahkan stack trace untuk info lebih lanjut
+    if (err.stack) error("Stack trace: " + err.stack);
     return res.json({ success: false, error: err.message }, 500);
   }
 };
