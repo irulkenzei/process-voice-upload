@@ -1,6 +1,7 @@
 const { Client, Databases, Storage, ID, InputFile } = require('node-appwrite');
 
 module.exports = async ({ req, res, log, error }) => {
+  console.log("Function started!");
   // Parsing body request dari React Native
   const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = JSON.parse(req.body);
 
