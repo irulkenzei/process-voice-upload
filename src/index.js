@@ -22,17 +22,20 @@ module.exports = async ({ req, res, log, error }) => {
     if (!response.ok) throw new Error(`Fetch gagal: ${response.statusText}`);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // 2. Upload
+    // 2. Upload - Menggunakan pendekatan InputFile.fromBuffer yang lebih aman
     log("Mencoba upload ke Bucket ID: " + process.env.APPWRITE_BUCKET_ID);
+    
+    // Pastikan kita menggunakan metode dari kelas InputFile yang benar
     const uploadedFile = await storage.createFile(
       process.env.APPWRITE_BUCKET_ID,
       ID.unique(),
       InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
     );
+    
     log("Upload berhasil. File ID: " + uploadedFile.$id);
 
     // 3. Database
-    log("Mencoba buat dokumen di Database ID: " + process.env.DATABASE_ID);
+    log("Mencoba buat dokumen di Database ID: " + process.env.APPWRITE_DATABASE_ID);
     const newDoc = await databases.createDocument(
       process.env.APPWRITE_DATABASE_ID,
       'generations',
@@ -53,7 +56,6 @@ module.exports = async ({ req, res, log, error }) => {
 
   } catch (err) {
     error("CRITICAL ERROR: " + err.message);
-    // Tambahkan stack trace untuk info lebih lanjut
     if (err.stack) error("Stack trace: " + err.stack);
     return res.json({ success: false, error: err.message }, 500);
   }
