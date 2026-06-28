@@ -40,7 +40,7 @@ module.exports = async ({ req, res, log, error }) => {
       ID.unique(),
       InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
     );
-
+    log("Upload berhasil! File ID:", uploadedFile.$id);
     log("Creating document...");
     const newDoc = await databases.createDocument(
       process.env.DATABASE_ID,
