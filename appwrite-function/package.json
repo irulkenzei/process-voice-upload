@@ -1,8 +1,0 @@
-{
-  "name": "voice-upload-function",
-  "version": "1.0.0",
-  "main": "src/index.js",
-  "dependencies": {
-    "node-appwrite": "latest"
-  }
-}
