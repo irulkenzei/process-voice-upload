@@ -1,38 +1,43 @@
 const { Client, Databases, Storage, ID, InputFile } = require('node-appwrite');
-module.exports = async ({ req, res, log, error }) => {
-  console.log("Function started!");
-  // Parsing body request dari React Native
-  const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = JSON.parse(req.body);
+// Tambahkan ini jika runtime Anda tidak mendukung fetch global
+const fetch = require('node-fetch'); 
 
+module.exports = async ({ req, res, log, error }) => {
+  log("Function started!");
+
+  // Inisialisasi Client
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setKey(process.env.APPWRITE_API_KEY); // Pastikan API Key ada di Settings > Variables
+    .setKey(process.env.APPWRITE_API_KEY);
 
   const storage = new Storage(client);
   const databases = new Databases(client);
 
   try {
-     console.log("Payload diterima:", req.body); 
-     const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    // Parsing body dengan aman
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = body;
 
-     if (!data.replicateOutputUrl) {
-            throw new Error("replicateOutputUrl tidak ditemukan di body!");
-        }
+    log(`Fetching URL: ${replicateUrl}`);
 
-        console.log("URL ditemukan:", data.replicateOutputUrl);
-
+    // Fetch data dari Replicate
     const response = await fetch(replicateUrl);
-    const buffer = await response.arrayBuffer();
+    if (!response.ok) throw new Error(`Gagal mendownload audio: ${response.statusText}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
+    // Upload ke Storage
+    log("Uploading to storage...");
     const uploadedFile = await storage.createFile(
       process.env.BUCKET_ID,
       ID.unique(),
-      InputFile.fromBuffer(Buffer.from(buffer), 'audio.mp3')
-
-      
+      InputFile.fromBuffer(buffer, 'generated-audio.wav', 'audio/wav')
     );
 
+    // Simpan ke Database
+    log("Creating document...");
     const newDoc = await databases.createDocument(
       process.env.DATABASE_ID,
       'generations',
@@ -41,17 +46,17 @@ module.exports = async ({ req, res, log, error }) => {
         user_id: userId,
         file_id: uploadedFile.$id,
         bucket_id: process.env.BUCKET_ID,
-        text_snippet: textSnippet.substring(0, 150),
+        text_snippet: textSnippet ? textSnippet.substring(0, 150) : "",
         speaker_id: speakerId,
         speaker_label: speakerLabel,
         language_code: languageCode
       }
     );
 
-    return res.json({ success: true, message: "File berhasil diunggah" });
+    return res.json({ success: true, document: newDoc });
 
-    } catch (error) {
-        console.error("ERROR DETECTED:", error.message);
-        return res.json({ success: false, error: error.message }, 500);
-    }
+  } catch (err) {
+    error(`Error details: ${err.message}`);
+    return res.json({ success: false, error: err.message }, 500);
+  }
 };
