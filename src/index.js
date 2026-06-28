@@ -1,11 +1,22 @@
 const { Client, Databases, Storage, ID, InputFile } = require('node-appwrite');
-// Tambahkan ini jika runtime Anda tidak mendukung fetch global
-const fetch = require('node-fetch'); 
+const fetch = require('node-fetch');
 
 module.exports = async ({ req, res, log, error }) => {
   log("Function started!");
 
-  // Inisialisasi Client
+  // 1. Ambil data dengan aman (cek req.body atau req.payload)
+  // Appwrite sering menaruh JSON di req.payload
+  const payload = req.payload ? JSON.parse(req.payload) : (typeof req.body === 'string' ? JSON.parse(req.body) : req.body);
+  
+  log("Data yang diterima:", JSON.stringify(payload));
+
+  const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = payload;
+
+  if (!replicateUrl) {
+    error("replicateUrl tidak ditemukan dalam payload!");
+    return res.json({ success: false, error: "replicateUrl missing" }, 400);
+  }
+
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
@@ -15,28 +26,21 @@ module.exports = async ({ req, res, log, error }) => {
   const databases = new Databases(client);
 
   try {
-    // Parsing body dengan aman
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { userId, replicateUrl, textSnippet, speakerId, speakerLabel, languageCode } = body;
-
     log(`Fetching URL: ${replicateUrl}`);
-
-    // Fetch data dari Replicate
     const response = await fetch(replicateUrl);
-    if (!response.ok) throw new Error(`Gagal mendownload audio: ${response.statusText}`);
+    
+    if (!response.ok) throw new Error(`Gagal download: ${response.statusText}`);
     
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload ke Storage
     log("Uploading to storage...");
     const uploadedFile = await storage.createFile(
       process.env.BUCKET_ID,
       ID.unique(),
-      InputFile.fromBuffer(buffer, 'generated-audio.wav', 'audio/wav')
+      InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
     );
 
-    // Simpan ke Database
     log("Creating document...");
     const newDoc = await databases.createDocument(
       process.env.DATABASE_ID,
@@ -46,7 +50,7 @@ module.exports = async ({ req, res, log, error }) => {
         user_id: userId,
         file_id: uploadedFile.$id,
         bucket_id: process.env.BUCKET_ID,
-        text_snippet: textSnippet ? textSnippet.substring(0, 150) : "",
+        text_snippet: textSnippet ? String(textSnippet).substring(0, 150) : "",
         speaker_id: speakerId,
         speaker_label: speakerLabel,
         language_code: languageCode
