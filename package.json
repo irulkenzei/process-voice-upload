@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "dependencies": {
-    "node-appwrite": "latest"
+    "node-appwrite": "latest",
+    "node-fetch": "^2.7.0"
   }
 }
