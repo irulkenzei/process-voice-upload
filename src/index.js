@@ -23,9 +23,9 @@ module.exports = async ({ req, res, log, error }) => {
     const buffer = Buffer.from(await response.arrayBuffer());
 
     // 2. Upload
-    log("Mencoba upload ke Bucket ID: " + process.env.BUCKET_ID);
+    log("Mencoba upload ke Bucket ID: " + process.env.APPWRITE_BUCKET_ID);
     const uploadedFile = await storage.createFile(
-      process.env.BUCKET_ID,
+      process.env.APPWRITE_BUCKET_ID,
       ID.unique(),
       InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav')
     );
@@ -34,13 +34,13 @@ module.exports = async ({ req, res, log, error }) => {
     // 3. Database
     log("Mencoba buat dokumen di Database ID: " + process.env.DATABASE_ID);
     const newDoc = await databases.createDocument(
-      process.env.DATABASE_ID,
+      process.env.APPWRITE_DATABASE_ID,
       'generations',
       ID.unique(),
       {
         user_id: userId,
         file_id: uploadedFile.$id,
-        bucket_id: process.env.BUCKET_ID,
+        bucket_id: process.env.APPWRITE_BUCKET_ID,
         text_snippet: textSnippet ? String(textSnippet).substring(0, 150) : "",
         speaker_id: speakerId,
         speaker_label: speakerLabel,
