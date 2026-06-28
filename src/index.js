@@ -45,8 +45,8 @@ module.exports = async ({ req, res, log, error }) => {
         file_id: uploadedFile.$id,
         bucket_id: process.env.APPWRITE_BUCKET_ID,
         text_snippet: textSnippet ? String(textSnippet).substring(0, 150) : "",
-        speaker_id: speakerId,
-        speaker_label: speakerLabel,
+        speaker_id: speakerId ? String(speakerId).substring(0, 32) : "",
+        speaker_label: speakerLabel ? String(speakerLabel).substring(0, 32) : "",
         language_code: languageCode
       }
     );
