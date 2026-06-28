@@ -1,4 +1,5 @@
-const { Client, Databases, Storage, ID, InputFile } = require('node-appwrite');
+const { Client, Databases, Storage, ID } = require('node-appwrite');
+const { InputFile } = require('node-appwrite/file');
 const fetch = require('node-fetch');
 
 module.exports = async ({ req, res, log, error }) => {
@@ -28,7 +29,7 @@ module.exports = async ({ req, res, log, error }) => {
     const uploadedFile = await storage.createFile(
       process.env.APPWRITE_BUCKET_ID,
       ID.unique(),
-      InputFile.fromBuffer(buffer, 'audio.wav', 'audio/wav') 
+      InputFile.fromBuffer(buffer, 'audio.wav')
     );
     
     log("Upload berhasil. File ID: " + uploadedFile.$id);
